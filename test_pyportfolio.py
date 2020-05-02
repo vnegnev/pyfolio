@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
-# Tests of PyFolio
+# Tests of PyPortfolio
 
-from pyfolio import *
+from pyportfolio import *
 import unittest
 
 class OptionTest(unittest.TestCase):
@@ -51,7 +51,7 @@ class OptionTest(unittest.TestCase):
     #     
             
 
-class PyfolioTest(unittest.TestCase):
+class PyPortfolioTest(unittest.TestCase):
 
     def setUp(self):
         self.tr1 = None

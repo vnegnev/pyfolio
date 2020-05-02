@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# PyFolio: a way for me to keep track of my portfolio, and be able to forecast what happens in the case of different price moves.
+# PyPortfolio: a way for me to keep track of my portfolio, and be able to forecast what happens in the case of different price moves.
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -48,8 +48,9 @@ class Option:
         # self.unit_price = np.vectorize(self.unit_price, otypes=[float], excluded=('underlying_price', 'iv')) #, signature='(),(1?),(1?)->(1?)')#, signature='(),(n?),(m?)->(k?)')#, excluded=('underlying_price', 'iv'))
         # self.unit_price = np.vectorize(self.unit_price, otypes=[float], excluded=[1])
         
-        self.unit_price = np.vectorize(self.unit_price, otypes=[np.ndarray], excluded=[0, 1])
-        self.cost_to_close = np.vectorize(self.cost_to_close, otypes=[np.ndarray], excluded=[0, 1])        
+        self.unit_price = np.vectorize(self.unit_price, otypes=[np.ndarray], excluded=[0])
+        self.cost_to_close = np.vectorize(self.cost_to_close, otypes=[np.ndarray], excluded=[0])
+        self.profit = np.vectorize(self.profit, otypes=[np.ndarray], excluded=[0])        
 
     def __repr__(self):
         pc = "p" if put else "c"
@@ -106,6 +107,8 @@ class Option:
         prof = -self.net_cost - self.cost_to_close(*args, **kwargs)
         if percentage:
             return prof / np.abs(self.net_cost) * 100
+        else:
+            return prof
             
 
 class Portfolio:

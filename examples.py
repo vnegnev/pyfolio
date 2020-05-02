@@ -23,7 +23,7 @@ def single_option():
 
     days = [200, 100, 50, 20, 10, 0.00001] # days till expiry; don't quite use 0 days, since formula diverges at the strike price
     prices = np.linspace(80, 110, 1000) # range of underlying prices
-    iv = 20 # implied volatility
+    iv = 30 # implied volatility
 
     fig, axs = plt.subplots(2, 2, figsize=(14, 10)) # slightly larger figure than normal
 
@@ -55,5 +55,83 @@ def single_option():
 
     axpu.legend( tuple("{:.1f} days left".format(d) for d in days) )
     plt.show()
+
+def strangle_portfolio():
+    """ You bought two sets of options and are long a strangle, and you'd like to see how it performs as a function of the underlying price and the days until expiry.
+    Manual calculation.
+    """
+
+    oa = pf.Option('ABC', '2020-06-30', True, 80, 3, 300, 6)
+    ob = pf.Option('ABC', '2020-06-30', False, 120, 3, 300, 6)
+
+    days = [60, 40, 20, 10, 0.00001]
+    prices = np.linspace(70, 130, 1000)
+    iv = 30
+
+    fig, ax = plt.subplots(1, 1, figsize=(14, 10)) # slightly larger figure than normal
+
+    lines = oa.profit(prices, iv, days) + ob.profit(prices, iv, days)
+    for k, l in enumerate(lines):
+        ax.plot(prices, l)
+
+    ax.grid(True)
+    ax.set_xlabel('Price of underlying')
+    ax.set_ylabel('Profit percentage (positive = you gain)')
+    ax.legend( tuple("{:.1f} days left".format(d) for d in days) )
+    plt.show()
+
+def short_portfolio():
+    """ You bought a put and sold a call at the same strike, creating an effective short position, and you'd like to see how it performs as a function of the underlying price and the implied volatility (due to put-call parity, it should be insensitive to IV and expiry time).
+    Manual calculation.
+    """
+
+    # oa = pf.Option('ABC', '2020-06-30', True, 100, 3, 126, 6)
+    # ob = pf.Option('ABC', '2020-06-30', False, 100, -3, -114, 6)
+    oa = pf.Option('VXX', '2020-06-05', True, 41.5, 20, 5.35*6*100+2*6, 2*6)
+    ob = pf.Option('VXX', '2020-06-05', False, 41.5, -20, -4.45*6*100+2*6, 2*6)
+
+    days = 30
+    # prices = np.linspace(70, 130, 1000)
+    prices = np.linspace(20, 60, 1000)
+    iv = [80, 100, 120, 150]
+
+    fig, ax = plt.subplots(1, 1, figsize=(14, 10)) # slightly larger figure than normal
+
+    lines = oa.profit(prices, iv, days, percentage=False) + ob.profit(prices, iv, days, percentage=False)
+    for k, l in enumerate(lines):
+        ax.plot(prices, l)
+
+    ax.grid(True)
+    ax.set_xlabel('Price of underlying')
+    ax.set_ylabel('Profit (positive = you gain)')
+    ax.legend( tuple("{:.1f}% IV".format(i) for i in iv) )
+    plt.show()
+
+def reverse_calendar_spread_portfolio():
+    """ You bought two sets of options at the same strike and different expiry dates, and are long the near-expiry one and short the far-expiry one. You'd like to see how it performs as a function of the underlying price and the days until expiry.
+    Manual calculation.
+    """
+
+    oa = pf.Option('SPY', '2020-06-30', False, 100, 3, 136, 6)
+    ob = pf.Option('SPY', '2020-08-30', False, 100, -3, -150, 6)
+
+    dates = ['2020-04-30', '2020-05-30', '2020-06-15']
+    prices = np.linspace(70, 130, 1000)
+    iv = 20
+
+    fig, ax = plt.subplots(1, 1, figsize=(14, 10)) # slightly larger figure than normal
+
+    lines = oa.profit(prices, iv, dates) + ob.profit(prices, iv, dates)
+    for k, l in enumerate(lines):
+        ax.plot(prices, l)
+
+    ax.grid(True)
+    ax.set_xlabel('Price of underlying')
+    ax.set_ylabel('Profit percentage (positive = you gain)')
+    ax.legend( tuple("Profit on {:s}".format(d) for d in dates) )
+    plt.show()    
     
-single_option()
+# single_option()
+# strangle_portfolio()
+short_portfolio()
+# reverse_calendar_spread_portfolio()
