@@ -1,0 +1,22 @@
+#!+TITLE: Pyfolio
+
+* Introduction
+
+  A basic portfolio calculator in Python.
+  Written for simple stock and stock option trading.
+  Allows you to see the impact that changing underlying prices and IVs will have on your positions.
+
+  Currently just uses the basic Black-Scholes European-style option pricing model.
+  WARNING: the days-until-expiry calculation does NOT skip weekends and public holidays yet, so watch out if you're using this for options near expiry!
+
+* Requirements
+
+  Python 3.x, Numpy, Scipy and Matplotlib
+
+* Quickstart
+
+  - Clone the repo
+
+  - Read examples.py for examples of how to use it
+
+  - Write and run your own Python file containing your positions
