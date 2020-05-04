@@ -5,6 +5,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
+from scipy.optimize import root_scalar
 import datetime
 
 import pdb
@@ -21,7 +22,7 @@ def is_iterable(obj):
 class Option:
     """ Class describing a single option transaction, and allowing you to calculate the predicted option price in the future. """
 
-    def __init__(self, underlying, expiry, put, strike, increase_in_position, net_cost, transaction_fees, ratio=100, underlying_price=None):
+    def __init__(self, underlying, expiry, put, strike, increase_in_position, net_cost, transaction_fees, ratio=100, underlying_price=None, date_on_open=None):
         """ underlying: underlying ticker string, eg 'SPY'
         expiry: date string, YYYY-MM-DD, e.g. "2019-11-28"
         put: true if a put, false if a call
@@ -30,6 +31,10 @@ class Option:
         net_cost: how much money the entire transaction cost you; positive if you bought, negative if you sold (i.e. gained money)
         transaction_fees: what the fees were for the entire transaction (always positive, presumably)
         ratio: option ratio on exercise, usually 10 or 100
+
+        If you want to calculate the IV of your purchase:
+        underlying_price: underlying's price upon opening the position (only needed if you want to calculate the IV)
+        date_on_open: date the position was opened
         """
         self.underlying = underlying
         self.expiry = expiry
@@ -43,7 +48,7 @@ class Option:
         # Internal calculation
         self.expiry_date = datetime.date.fromisoformat(expiry)
         if underlying_price:
-            self.calculate_iv(underlying_price)
+            self.calculate_iv(underlying_price, date_on_open)
 
         # self.unit_price = np.vectorize(self.unit_price, otypes=[float], excluded=('underlying_price', 'iv')) #, signature='(),(1?),(1?)->(1?)')#, signature='(),(n?),(m?)->(k?)')#, excluded=('underlying_price', 'iv'))
         # self.unit_price = np.vectorize(self.unit_price, otypes=[float], excluded=[1])
@@ -56,27 +61,43 @@ class Option:
         pc = "p" if put else "c"
         return "{:s} {:.1f}{s} {:s}".format(underlying, strike, expiry_date)
 
-    def calculate_iv(self, underlying_price):
+    def calculate_iv(self, underlying_price, date_on_open):
         # calculate the IV at the time of the transaction
 
-        print("NOT DONE YET")
+        rfn = lambda iv: self.unit_price(underlying_price, date_on_open, iv) - self.net_cost/self.ratio/self.increase_in_position
+        try:
+            res = root_scalar(rfn, method='toms748', bracket=(1, 500))
+        except ValueError:
+            st()
 
-    def unit_price(self, underlying_price, iv, date, interest_rate=0):
+        self.iv = res.root # convergence guaranteed so this should be safe
+
+    def unit_price(self, underlying_price, date, iv=None, interest_rate=0):
         """ Return the unit price of the options.
         underlying_price: price of underlying; single value or numpy array
-        iv: implied volatility: single value or numpy array. Must be a percentage value.
         date: date string to calculate the price at; e.g. '2020-01-19'; alternatively you can manually specify the number of days until expiry, e.g. 3.5 . Accepts array-like as well.
+        iv: implied volatility: single value or numpy array. Must be a percentage value. If None, then the IV at opening is used.
         interest_rate: interest rate for Black-Scholes calculation; near-zero for the next decade in most of the developed world! Only relevant for options with many months or longer to expiry.
         """
         # vectorise inputs, to be safe
         underlying_price = np.asarray(underlying_price)
-        iv = np.asarray(iv)
+
+        if iv:
+            iv = np.asarray(iv)
+        else:
+            iv = np.asarray(self.iv)
         # time remaining, in years
         if type(date) is str:
             tau = (self.expiry_date - datetime.date.fromisoformat(date)).days / 365 # approximate; ignores weekends etc!
         else:
             tau = date / 365 # presumably an int/double
+
         ivr = iv / 100
+
+        try:
+            tau[tau < 1e-5] = 1e-5 # avoid zeros, since formula diverges at the strike price
+        except TypeError:
+            tau = 1e-5 if tau < 1e-5 else tau
 
         d1 = (np.log(underlying_price/self.strike) + tau*(interest_rate + ivr**2/2)) / (ivr * np.sqrt(tau) )
         d2 = d1 - ivr * np.sqrt(tau)
@@ -140,16 +161,16 @@ class Portfolio:
         
         for tr in transaction_list:
             if tr.underlying == underlying: # strings match
-                cost = tr.cost_to_close(date, price, iv, add_transaction_fees, interest_rate)
+                cost = tr.cost_to_close(price, date, iv, add_transaction_fees, interest_rate)
                 try:
                     costs += cost
                 except IOError:
                     st()
 
-    def cost_to_close_portfolio(self, prices, ivs, date, add_transaction_fees=True, interest_rate=0):
-        """prices: a dictionary in the form of {underlying : price}, e.g. {'SPY':250, 'IWM': 120, 'VXX':45}. Each value can be a single number or a Numpy array, but in the latter case all the other values have to be the same shape.        
-        ivs: a dictionary in the form of {underlying: iv}, e.g. {'SPY':35, 'IWM':60, 'VXX': 100}. Each value can be a single number or a Numpy array, but in the latter case all the other values have to be the same shape.
+    def cost_to_close_portfolio(self, price, date, iv, add_transaction_fees=True, interest_rate=0):
+        """price: a dictionary in the form of {underlying : price}, e.g. {'SPY':250, 'IWM': 120, 'VXX':45}. Each value can be a single number or a Numpy array, but in the latter case all the other values have to be the same shape.        
         date: date or range of dates to calculate this for your portfolio
+        iv: a dictionary in the form of {underlying: iv}, e.g. {'SPY':35, 'IWM':60, 'VXX': 100}. Each value can be a single number or a Numpy array, but in the latter case all the other values have to be the same shape. For those with None values, the IV at the position opening is used.
         add_transaction_fees: add transaction fees (based on the opening transaction/transactions) to the cost to close
         interest_rate: interest rate for Black-Scholes calculations on the options; near-zero for the next decade in most of the developed world! Only relevant for options with many months or longer to expiry.
 
